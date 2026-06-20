@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logout = exports.getCurrentUser = exports.login = exports.register = void 0;
+exports.uploadProfilePictureController = exports.logout = exports.getCurrentUser = exports.login = exports.register = void 0;
 const constant_1 = require("../configs/constant");
 const user_dto_1 = require("../dtos/user.dto");
 const http_exception_1 = require("../exceptions/http-exception");
@@ -75,3 +75,22 @@ const logout = async (_req, res) => {
     }
 };
 exports.logout = logout;
+const uploadProfilePictureController = async (req, res) => {
+    try {
+        if (!req.user) {
+            return (0, apihelper_util_1.sendResponse)(res, 401, false, "Unauthorized");
+        }
+        if (!req.file) {
+            return (0, apihelper_util_1.sendResponse)(res, 400, false, "Please upload a file");
+        }
+        const profilePicturePath = `/uploads/profile_pics/${req.file.filename}`;
+        const user = await (0, user_service_1.updateUserProfilePictureService)(req.user.id, profilePicturePath);
+        return (0, apihelper_util_1.sendResponse)(res, 200, true, "Profile picture uploaded successfully", user);
+    }
+    catch (error) {
+        const statusCode = error instanceof http_exception_1.HttpException ? error.statusCode : 500;
+        const message = error instanceof Error ? error.message : "Failed to upload profile picture";
+        return (0, apihelper_util_1.sendResponse)(res, statusCode, false, message);
+    }
+};
+exports.uploadProfilePictureController = uploadProfilePictureController;

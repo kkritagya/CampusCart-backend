@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUser = exports.findUserById = exports.findUserByEmail = void 0;
+exports.updateUserProfilePicture = exports.createUser = exports.findUserById = exports.findUserByEmail = void 0;
 const user_model_1 = require("../models/user.model");
 const findUserByEmail = (email) => {
     return user_model_1.UserModel.findOne({ email: email.toLowerCase().trim() });
@@ -18,3 +18,7 @@ const createUser = (user) => {
     });
 };
 exports.createUser = createUser;
+const updateUserProfilePicture = (id, profilePicture) => {
+    return user_model_1.UserModel.findByIdAndUpdate(id, { profilePicture }, { new: true });
+};
+exports.updateUserProfilePicture = updateUserProfilePicture;

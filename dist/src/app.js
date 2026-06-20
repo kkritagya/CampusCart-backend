@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
+const path_1 = __importDefault(require("path"));
 const constant_1 = require("./configs/constant");
 const user_route_1 = __importDefault(require("./routes/user.route"));
 const apihelper_util_1 = require("./utils/apihelper.util");
@@ -15,6 +16,7 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
+app.use("/uploads", express_1.default.static(path_1.default.join(__dirname, "../uploads")));
 app.get("/", (_req, res) => {
     return (0, apihelper_util_1.sendResponse)(res, 200, true, "Campus backend API is running");
 });
