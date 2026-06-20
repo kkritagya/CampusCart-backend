@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserById = exports.loginUser = exports.registerUser = exports.toUserResponse = void 0;
+exports.updateUserProfilePictureService = exports.getUserById = exports.loginUser = exports.registerUser = exports.toUserResponse = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const constant_1 = require("../configs/constant");
@@ -13,6 +13,7 @@ const toUserResponse = (user) => ({
     id: user._id.toString(),
     fullName: user.fullName,
     email: user.email,
+    profilePicture: user.profilePicture,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
 });
@@ -59,3 +60,11 @@ const getUserById = async (userId) => {
     return (0, exports.toUserResponse)(user);
 };
 exports.getUserById = getUserById;
+const updateUserProfilePictureService = async (userId, profilePicturePath) => {
+    const user = await (0, user_repository_1.updateUserProfilePicture)(userId, profilePicturePath);
+    if (!user) {
+        throw new http_exception_1.HttpException(404, "User not found");
+    }
+    return (0, exports.toUserResponse)(user);
+};
+exports.updateUserProfilePictureService = updateUserProfilePictureService;
