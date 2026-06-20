@@ -3,7 +3,7 @@ import { JWT_COOKIE_NAME } from "../configs/constant";
 import { LoginUserDto, RegisterUserDto, validateLoginDto, validateRegisterDto } from "../dtos/user.dto";
 import { HttpException } from "../exceptions/http-exception";
 import { AuthRequest } from "../middlewares/authorized.middleware";
-import { getUserById, loginUser, registerUser } from "../services/user.service";
+import { getUserById, loginUser, registerUser, updateUserProfilePictureService } from "../services/user.service";
 import { sendResponse } from "../utils/apihelper.util";
 
 const cookieOptions = {
@@ -76,5 +76,26 @@ export const logout = async (_req: Request, res: Response) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Logout failed";
     return sendResponse(res, 500, false, message);
+  }
+};
+
+export const uploadProfilePictureController = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return sendResponse(res, 401, false, "Unauthorized");
+    }
+
+    if (!req.file) {
+      return sendResponse(res, 400, false, "Please upload a file");
+    }
+
+    const profilePicturePath = `/uploads/profile_pics/${req.file.filename}`;
+    const user = await updateUserProfilePictureService(req.user.id, profilePicturePath);
+
+    return sendResponse(res, 200, true, "Profile picture uploaded successfully", user);
+  } catch (error) {
+    const statusCode = error instanceof HttpException ? error.statusCode : 500;
+    const message = error instanceof Error ? error.message : "Failed to upload profile picture";
+    return sendResponse(res, statusCode, false, message);
   }
 };

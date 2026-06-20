@@ -4,6 +4,7 @@ export interface IUser {
   fullName: string;
   email: string;
   password: string;
+  profilePicture?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -16,6 +17,7 @@ export interface IUserResponse {
   id: string;
   fullName: string;
   email: string;
+  profilePicture?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

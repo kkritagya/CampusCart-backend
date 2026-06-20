@@ -20,3 +20,10 @@ export const createUser = (user: {
     password: user.password,
   });
 };
+
+export const updateUserProfilePicture = (
+  id: string,
+  profilePicture: string
+): Promise<IUserDocument | null> => {
+  return UserModel.findByIdAndUpdate(id, { profilePicture }, { new: true });
+};

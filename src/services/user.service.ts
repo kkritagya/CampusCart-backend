@@ -3,13 +3,14 @@ import jwt from "jsonwebtoken";
 import { BCRYPT_SALT_ROUNDS, JWT_EXPIRES_IN, JWT_SECRET } from "../configs/constant";
 import { LoginUserDto, RegisterUserDto } from "../dtos/user.dto";
 import { HttpException } from "../exceptions/http-exception";
-import { createUser, findUserByEmail, findUserById } from "../repositories/user.repository";
+import { createUser, findUserByEmail, findUserById, updateUserProfilePicture } from "../repositories/user.repository";
 import { IUserDocument, IUserResponse, JwtPayload } from "../types/user.type";
 
 export const toUserResponse = (user: IUserDocument): IUserResponse => ({
   id: user._id.toString(),
   fullName: user.fullName,
   email: user.email,
+  profilePicture: user.profilePicture,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -61,6 +62,19 @@ export const loginUser = async (
 
 export const getUserById = async (userId: string): Promise<IUserResponse> => {
   const user = await findUserById(userId);
+
+  if (!user) {
+    throw new HttpException(404, "User not found");
+  }
+
+  return toUserResponse(user);
+};
+
+export const updateUserProfilePictureService = async (
+  userId: string,
+  profilePicturePath: string
+): Promise<IUserResponse> => {
+  const user = await updateUserProfilePicture(userId, profilePicturePath);
 
   if (!user) {
     throw new HttpException(404, "User not found");
