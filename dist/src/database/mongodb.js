@@ -6,12 +6,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectDatabase = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const constant_1 = require("../configs/constant");
+const user_model_1 = require("../models/user.model");
 const connectDatabase = async () => {
     try {
         if (!constant_1.MONGO_URI) {
             throw new Error("MONGO_URI is missing in environment variables");
         }
         await mongoose_1.default.connect(constant_1.MONGO_URI);
+        if (constant_1.ADMIN_EMAIL) {
+            await user_model_1.UserModel.updateOne({ email: constant_1.ADMIN_EMAIL }, { $set: { role: "admin", status: "active" } });
+        }
         console.log("MongoDB connected successfully");
     }
     catch (error) {
