@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserProfilePictureService = exports.getUserById = exports.loginUser = exports.registerUser = exports.toUserResponse = void 0;
+exports.updateUserPasswordService = exports.updateUserProfileService = exports.updateUserProfilePictureService = exports.getUserById = exports.loginUser = exports.registerUser = exports.toUserResponse = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const constant_1 = require("../configs/constant");
@@ -13,7 +13,11 @@ const toUserResponse = (user) => ({
     id: user._id.toString(),
     fullName: user.fullName,
     email: user.email,
+    role: user.role ?? "user",
+    status: user.status ?? "active",
     profilePicture: user.profilePicture,
+    phone: user.phone,
+    address: user.address,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
 });
@@ -68,3 +72,42 @@ const updateUserProfilePictureService = async (userId, profilePicturePath) => {
     return (0, exports.toUserResponse)(user);
 };
 exports.updateUserProfilePictureService = updateUserProfilePictureService;
+const updateUserProfileService = async (userId, data) => {
+    const existingUser = await (0, user_repository_1.findUserById)(userId);
+    if (!existingUser) {
+        throw new http_exception_1.HttpException(404, "User not found");
+    }
+    const updateData = {
+        fullName: data.fullName.trim(),
+        phone: data.phone?.trim() ?? "",
+        address: data.address?.trim() ?? "",
+    };
+    if (data.profilePicture) {
+        updateData.profilePicture = data.profilePicture;
+    }
+    const updatedUser = await (0, user_repository_1.updateUser)(userId, updateData);
+    if (!updatedUser) {
+        throw new http_exception_1.HttpException(500, "Failed to update user profile");
+    }
+    return (0, exports.toUserResponse)(updatedUser);
+};
+exports.updateUserProfileService = updateUserProfileService;
+const updateUserPasswordService = async (userId, currentPassword, newPassword) => {
+    if (!currentPassword || !newPassword) {
+        throw new http_exception_1.HttpException(400, "Current password and new password are required");
+    }
+    const user = await (0, user_repository_1.findUserById)(userId);
+    if (!user) {
+        throw new http_exception_1.HttpException(404, "User not found");
+    }
+    const isPasswordValid = await bcryptjs_1.default.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+        throw new http_exception_1.HttpException(400, "Incorrect current password");
+    }
+    const hashedPassword = await bcryptjs_1.default.hash(newPassword, constant_1.BCRYPT_SALT_ROUNDS);
+    const updatedUser = await (0, user_repository_1.updateUser)(userId, { password: hashedPassword });
+    if (!updatedUser) {
+        throw new http_exception_1.HttpException(500, "Failed to update password");
+    }
+};
+exports.updateUserPasswordService = updateUserPasswordService;
