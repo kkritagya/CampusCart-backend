@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const listing_controller_1 = require("../controllers/listing.controller");
+const authorized_middleware_1 = require("../middlewares/authorized.middleware");
+const upload_middleware_1 = require("../middlewares/upload.middleware");
+const router = (0, express_1.Router)();
+router.get("/", listing_controller_1.listListings);
+router.get("/mine", authorized_middleware_1.authorize, listing_controller_1.listMyListings);
+router.get("/:id", listing_controller_1.showListing);
+router.post("/", authorized_middleware_1.authorize, upload_middleware_1.listingUpload.array("images", 6), listing_controller_1.addListing);
+router.put("/:id", authorized_middleware_1.authorize, upload_middleware_1.listingUpload.array("images", 6), listing_controller_1.editListing);
+router.delete("/:id", authorized_middleware_1.authorize, listing_controller_1.removeListing);
+exports.default = router;
