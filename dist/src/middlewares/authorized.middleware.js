@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authorize = void 0;
+exports.requireAdminSession = exports.requireAdmin = exports.authorize = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const constant_1 = require("../configs/constant");
 const http_exception_1 = require("../exceptions/http-exception");
@@ -43,6 +43,8 @@ const authorize = async (req, res, next) => {
             id: user._id.toString(),
             fullName: user.fullName,
             email: user.email,
+            role: user.role ?? "user",
+            status: user.status ?? "active",
         };
         next();
     }
@@ -53,3 +55,33 @@ const authorize = async (req, res, next) => {
     }
 };
 exports.authorize = authorize;
+const requireAdmin = (req, res, next) => {
+    if (!req.user) {
+        return (0, apihelper_util_1.sendResponse)(res, 401, false, "Unauthorized");
+    }
+    if (req.user.status !== "active") {
+        return (0, apihelper_util_1.sendResponse)(res, 403, false, "This account is inactive");
+    }
+    if (req.user.role !== "admin") {
+        return (0, apihelper_util_1.sendResponse)(res, 403, false, "Admin access required");
+    }
+    next();
+};
+exports.requireAdmin = requireAdmin;
+const requireAdminSession = (req, res, next) => {
+    try {
+        const token = getCookieValue(req.headers.cookie, "admin_session");
+        if (!token || !constant_1.JWT_SECRET) {
+            return (0, apihelper_util_1.sendResponse)(res, 401, false, "Admin re-authentication required");
+        }
+        const decoded = jsonwebtoken_1.default.verify(token, constant_1.JWT_SECRET);
+        if (decoded.userId !== req.user?.id || decoded.purpose !== "admin") {
+            return (0, apihelper_util_1.sendResponse)(res, 401, false, "Admin re-authentication required");
+        }
+        next();
+    }
+    catch {
+        return (0, apihelper_util_1.sendResponse)(res, 401, false, "Admin re-authentication required");
+    }
+};
+exports.requireAdminSession = requireAdminSession;
