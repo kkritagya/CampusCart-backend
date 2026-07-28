@@ -19,7 +19,27 @@ const userSchema = new Schema<IUserDocument>(
       type: String,
       required: [true, "Password is required"],
     },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
+      required: true,
+    },
     profilePicture: {
+      type: String,
+      default: "",
+    },
+    phone: {
+      type: String,
+      default: "",
+    },
+    address: {
       type: String,
       default: "",
     },
@@ -28,7 +48,5 @@ const userSchema = new Schema<IUserDocument>(
     timestamps: true,
   }
 );
-
-userSchema.index({ email: 1 }, { unique: true });
 
 export const UserModel = model<IUserDocument>("User", userSchema);
