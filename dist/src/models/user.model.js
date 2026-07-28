@@ -19,12 +19,31 @@ const userSchema = new mongoose_1.Schema({
         type: String,
         required: [true, "Password is required"],
     },
+    role: {
+        type: String,
+        enum: ["user", "admin"],
+        default: "user",
+        required: true,
+    },
+    status: {
+        type: String,
+        enum: ["active", "inactive"],
+        default: "active",
+        required: true,
+    },
     profilePicture: {
+        type: String,
+        default: "",
+    },
+    phone: {
+        type: String,
+        default: "",
+    },
+    address: {
         type: String,
         default: "",
     },
 }, {
     timestamps: true,
 });
-userSchema.index({ email: 1 }, { unique: true });
 exports.UserModel = (0, mongoose_1.model)("User", userSchema);
