@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const saved_listing_controller_1 = require("../controllers/saved-listing.controller");
+const authorized_middleware_1 = require("../middlewares/authorized.middleware");
+const router = (0, express_1.Router)();
+router.use(authorized_middleware_1.authorize);
+router.get("/", saved_listing_controller_1.listSaved);
+router.post("/:listingId", saved_listing_controller_1.addSaved);
+router.delete("/:listingId", saved_listing_controller_1.removeSaved);
+exports.default = router;

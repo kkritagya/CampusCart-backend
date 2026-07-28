@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const admin_listing_controller_1 = require("../controllers/admin-listing.controller");
+const authorized_middleware_1 = require("../middlewares/authorized.middleware");
+const router = (0, express_1.Router)();
+router.use(authorized_middleware_1.authorize, authorized_middleware_1.requireAdmin, authorized_middleware_1.requireAdminSession);
+router.get("/", admin_listing_controller_1.listAdminListings);
+router.patch("/:id/approve", admin_listing_controller_1.approveAdminListing);
+router.patch("/:id/reject", admin_listing_controller_1.rejectAdminListing);
+router.delete("/:id", admin_listing_controller_1.deleteAdminListing);
+exports.default = router;

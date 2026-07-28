@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const cart_controller_1 = require("../controllers/cart.controller");
+const authorized_middleware_1 = require("../middlewares/authorized.middleware");
+const router = (0, express_1.Router)();
+router.use(authorized_middleware_1.authorize);
+router.get("/", cart_controller_1.listCart);
+router.get("/purchases", cart_controller_1.listPurchases);
+router.get("/earnings", cart_controller_1.sellerEarnings);
+router.post("/checkout", cart_controller_1.checkout);
+router.post("/checkout/esewa/verify", cart_controller_1.verifyEsewa);
+router.post("/:listingId", cart_controller_1.addCartItem);
+router.delete("/:listingId", cart_controller_1.removeCartItem);
+exports.default = router;
