@@ -4,7 +4,11 @@ export interface IUser {
   fullName: string;
   email: string;
   password: string;
+  role: "user" | "admin";
+  status: "active" | "inactive";
   profilePicture?: string;
+  phone?: string;
+  address?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -17,7 +21,11 @@ export interface IUserResponse {
   id: string;
   fullName: string;
   email: string;
+  role: "user" | "admin";
+  status: "active" | "inactive";
   profilePicture?: string;
+  phone?: string;
+  address?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
