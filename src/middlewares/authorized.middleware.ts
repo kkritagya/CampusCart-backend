@@ -11,6 +11,8 @@ export interface AuthRequest extends Request {
     id: string;
     fullName: string;
     email: string;
+    role: "user" | "admin";
+    status: "active" | "inactive";
   };
 }
 
@@ -59,6 +61,8 @@ export const authorize = async (req: AuthRequest, res: Response, next: NextFunct
       id: user._id.toString(),
       fullName: user.fullName,
       email: user.email,
+      role: user.role ?? "user",
+      status: user.status ?? "active",
     };
 
     next();
@@ -66,5 +70,45 @@ export const authorize = async (req: AuthRequest, res: Response, next: NextFunct
     const statusCode = error instanceof HttpException ? error.statusCode : 401;
     const message = error instanceof Error ? error.message : "Unauthorized";
     return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return sendResponse(res, 401, false, "Unauthorized");
+  }
+
+  if (req.user.status !== "active") {
+    return sendResponse(res, 403, false, "This account is inactive");
+  }
+
+  if (req.user.role !== "admin") {
+    return sendResponse(res, 403, false, "Admin access required");
+  }
+
+  next();
+};
+
+export const requireAdminSession = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const token = getCookieValue(req.headers.cookie, "admin_session");
+    if (!token || !JWT_SECRET) {
+      return sendResponse(res, 401, false, "Admin re-authentication required");
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload & {
+      purpose?: string;
+    };
+    if (decoded.userId !== req.user?.id || decoded.purpose !== "admin") {
+      return sendResponse(res, 401, false, "Admin re-authentication required");
+    }
+
+    next();
+  } catch {
+    return sendResponse(res, 401, false, "Admin re-authentication required");
   }
 };
