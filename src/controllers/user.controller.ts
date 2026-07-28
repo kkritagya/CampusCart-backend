@@ -1,10 +1,15 @@
 import { Request, Response } from "express";
-import { JWT_COOKIE_NAME } from "../configs/constant";
+import jwt from "jsonwebtoken";
+import { JWT_COOKIE_NAME, JWT_SECRET } from "../configs/constant";
 import { LoginUserDto, RegisterUserDto, validateLoginDto, validateRegisterDto } from "../dtos/user.dto";
 import { HttpException } from "../exceptions/http-exception";
 import { AuthRequest } from "../middlewares/authorized.middleware";
-import { getUserById, loginUser, registerUser, updateUserProfilePictureService } from "../services/user.service";
+import { getUserById, loginUser, registerUser, updateUserProfilePictureService, updateUserProfileService, updateUserPasswordService } from "../services/user.service";
 import { sendResponse } from "../utils/apihelper.util";
+import {
+  requestPasswordReset,
+  resetPassword as resetPasswordService,
+} from "../services/password-reset.service";
 
 const cookieOptions = {
   httpOnly: true,
@@ -40,8 +45,27 @@ export const login = async (req: Request, res: Response) => {
 
     const { user, token } = await loginUser(req.body as LoginUserDto);
     res.cookie(JWT_COOKIE_NAME, token, cookieOptions);
+    let adminToken: string | undefined;
+    if (req.body?.adminReauth === true) {
+      if (user.role !== "admin" || user.status !== "active") {
+        return sendResponse(res, 403, false, "Admin access required");
+      }
+      adminToken = jwt.sign(
+        { userId: user.id, purpose: "admin" },
+        JWT_SECRET,
+        { expiresIn: "15m" }
+      );
+      res.cookie("admin_session", adminToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000,
+      });
+    }
 
-    return sendResponse(res, 200, true, "Login successful", { user, token });
+    return sendResponse(res, 200, true, "Login successful", {
+      user,
+      token,
+      ...(adminToken ? { adminToken } : {}),
+    });
   } catch (error) {
     const statusCode = error instanceof HttpException ? error.statusCode : 500;
     const message = error instanceof Error ? error.message : "Login failed";
@@ -71,6 +95,11 @@ export const logout = async (_req: Request, res: Response) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     });
+    res.clearCookie("admin_session", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
 
     return sendResponse(res, 200, true, "Logout successful");
   } catch (error) {
@@ -96,6 +125,104 @@ export const uploadProfilePictureController = async (req: AuthRequest, res: Resp
   } catch (error) {
     const statusCode = error instanceof HttpException ? error.statusCode : 500;
     const message = error instanceof Error ? error.message : "Failed to upload profile picture";
+    return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return sendResponse(res, 401, false, "Unauthorized");
+    }
+
+    const { fullName, phone, address } = req.body;
+
+    if (!fullName || fullName.trim().length < 2) {
+      return sendResponse(res, 400, false, "Full name must be at least 2 characters");
+    }
+
+    let profilePicture: string | undefined = undefined;
+    if (req.file) {
+      profilePicture = `/uploads/profile_pics/${req.file.filename}`;
+    }
+
+    const user = await updateUserProfileService(req.user.id, {
+      fullName,
+      phone,
+      address,
+      profilePicture,
+    });
+
+    return sendResponse(res, 200, true, "Profile updated successfully", user);
+  } catch (error) {
+    const statusCode = error instanceof HttpException ? error.statusCode : 500;
+    const message = error instanceof Error ? error.message : "Failed to update profile";
+    return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const updatePassword = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return sendResponse(res, 401, false, "Unauthorized");
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return sendResponse(res, 400, false, "New password must be at least 6 characters");
+    }
+
+    await updateUserPasswordService(req.user.id, currentPassword, newPassword);
+
+    return sendResponse(res, 200, true, "Password updated successfully");
+  } catch (error) {
+    const statusCode = error instanceof HttpException ? error.statusCode : 500;
+    const message = error instanceof Error ? error.message : "Failed to update password";
+    return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return sendResponse(res, 400, false, "A valid email is required");
+    }
+    await requestPasswordReset(email);
+    return sendResponse(
+      res,
+      200,
+      true,
+      "If an account exists for that email, a reset link has been sent."
+    );
+  } catch (error) {
+    const statusCode = error instanceof HttpException ? error.statusCode : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to request password reset";
+    return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const token = typeof req.body?.token === "string" ? req.body.token : "";
+    const newPassword =
+      typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+    if (!token) return sendResponse(res, 400, false, "Reset token is required");
+    if (newPassword.length < 8) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "New password must be at least 8 characters"
+      );
+    }
+    await resetPasswordService(token, newPassword);
+    return sendResponse(res, 200, true, "Password reset successfully");
+  } catch (error) {
+    const statusCode = error instanceof HttpException ? error.statusCode : 500;
+    const message = error instanceof Error ? error.message : "Password reset failed";
     return sendResponse(res, statusCode, false, message);
   }
 };
