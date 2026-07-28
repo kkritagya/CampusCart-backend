@@ -3,14 +3,18 @@ import jwt from "jsonwebtoken";
 import { BCRYPT_SALT_ROUNDS, JWT_EXPIRES_IN, JWT_SECRET } from "../configs/constant";
 import { LoginUserDto, RegisterUserDto } from "../dtos/user.dto";
 import { HttpException } from "../exceptions/http-exception";
-import { createUser, findUserByEmail, findUserById, updateUserProfilePicture } from "../repositories/user.repository";
-import { IUserDocument, IUserResponse, JwtPayload } from "../types/user.type";
+import { createUser, findUserByEmail, findUserById, updateUserProfilePicture, updateUser } from "../repositories/user.repository";
+import { IUserDocument, IUserResponse, JwtPayload, IUser } from "../types/user.type";
 
 export const toUserResponse = (user: IUserDocument): IUserResponse => ({
   id: user._id.toString(),
   fullName: user.fullName,
   email: user.email,
+  role: user.role ?? "user",
+  status: user.status ?? "active",
   profilePicture: user.profilePicture,
+  phone: user.phone,
+  address: user.address,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -81,4 +85,57 @@ export const updateUserProfilePictureService = async (
   }
 
   return toUserResponse(user);
+};
+
+export const updateUserProfileService = async (
+  userId: string,
+  data: { fullName: string; phone?: string; address?: string; profilePicture?: string }
+): Promise<IUserResponse> => {
+  const existingUser = await findUserById(userId);
+  if (!existingUser) {
+    throw new HttpException(404, "User not found");
+  }
+
+  const updateData: Partial<IUser> = {
+    fullName: data.fullName.trim(),
+    phone: data.phone?.trim() ?? "",
+    address: data.address?.trim() ?? "",
+  };
+
+  if (data.profilePicture) {
+    updateData.profilePicture = data.profilePicture;
+  }
+
+  const updatedUser = await updateUser(userId, updateData);
+  if (!updatedUser) {
+    throw new HttpException(500, "Failed to update user profile");
+  }
+
+  return toUserResponse(updatedUser);
+};
+
+export const updateUserPasswordService = async (
+  userId: string,
+  currentPassword?: string,
+  newPassword?: string
+): Promise<void> => {
+  if (!currentPassword || !newPassword) {
+    throw new HttpException(400, "Current password and new password are required");
+  }
+
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new HttpException(404, "User not found");
+  }
+
+  const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+  if (!isPasswordValid) {
+    throw new HttpException(400, "Incorrect current password");
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+  const updatedUser = await updateUser(userId, { password: hashedPassword });
+  if (!updatedUser) {
+    throw new HttpException(500, "Failed to update password");
+  }
 };
