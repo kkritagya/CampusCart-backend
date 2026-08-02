@@ -10,6 +10,11 @@ import {
   requestPasswordReset,
   resetPassword as resetPasswordService,
 } from "../services/password-reset.service";
+import {
+  requestMobilePasswordReset,
+  resetMobilePassword,
+  verifyMobilePasswordResetOtp,
+} from "../services/mobile-password-reset.service";
 
 const cookieOptions = {
   httpOnly: true,
@@ -223,6 +228,90 @@ export const resetPassword = async (req: Request, res: Response) => {
   } catch (error) {
     const statusCode = error instanceof HttpException ? error.statusCode : 500;
     const message = error instanceof Error ? error.message : "Password reset failed";
+    return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const forgotPasswordMobile = async (req: Request, res: Response) => {
+  try {
+    const email =
+      typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return sendResponse(res, 400, false, "A valid email is required");
+    }
+    await requestMobilePasswordReset(email);
+    return sendResponse(
+      res,
+      200,
+      true,
+      "If an account exists for that email, a 6-digit code has been sent."
+    );
+  } catch (error) {
+    const statusCode =
+      error instanceof HttpException ? error.statusCode : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to send reset code";
+    return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const verifyPasswordResetOtpMobile = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const email =
+      typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    const otp = typeof req.body?.otp === "string" ? req.body.otp.trim() : "";
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return sendResponse(res, 400, false, "A valid email is required");
+    }
+    if (!/^\d{6}$/.test(otp)) {
+      return sendResponse(res, 400, false, "Enter the 6-digit OTP");
+    }
+    const resetToken = await verifyMobilePasswordResetOtp(email, otp);
+    return sendResponse(
+      res,
+      200,
+      true,
+      "OTP verified",
+      { resetToken }
+    );
+  } catch (error) {
+    const statusCode =
+      error instanceof HttpException ? error.statusCode : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to verify reset code";
+    return sendResponse(res, statusCode, false, message);
+  }
+};
+
+export const resetPasswordMobile = async (req: Request, res: Response) => {
+  try {
+    const email =
+      typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    const resetToken =
+      typeof req.body?.resetToken === "string" ? req.body.resetToken : "";
+    const newPassword =
+      typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+    if (!email || !resetToken) {
+      return sendResponse(res, 400, false, "Reset session is required");
+    }
+    if (newPassword.length < 8) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "New password must be at least 8 characters"
+      );
+    }
+    await resetMobilePassword(email, resetToken, newPassword);
+    return sendResponse(res, 200, true, "Password reset successfully");
+  } catch (error) {
+    const statusCode =
+      error instanceof HttpException ? error.statusCode : 500;
+    const message =
+      error instanceof Error ? error.message : "Password reset failed";
     return sendResponse(res, statusCode, false, message);
   }
 };

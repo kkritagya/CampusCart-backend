@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { HttpException } from "../exceptions/http-exception";
 import { AuthRequest } from "../middlewares/authorized.middleware";
-import { addToCart, checkoutCart, getCart, getPurchasedOrders, getSellerEarnings, removeFromCart, verifyEsewaPayment } from "../services/cart.service";
+import { addToCart, checkoutCart, getCart, getEsewaPaymentStatus, getPurchasedOrders, getSellerEarnings, removeFromCart, verifyEsewaPayment } from "../services/cart.service";
 import { sendResponse } from "../utils/apihelper.util";
 
 function failure(res: Response, error: unknown) {
@@ -34,5 +34,9 @@ export async function checkout(req: AuthRequest, res: Response) {
 }
 export async function verifyEsewa(req: AuthRequest, res: Response) {
   try { return sendResponse(res, 200, true, "eSewa payment verified", await verifyEsewaPayment(req.user!.id, req.body?.data)); }
+  catch (error) { return failure(res, error); }
+}
+export async function esewaStatus(req: AuthRequest, res: Response) {
+  try { return sendResponse(res, 200, true, "eSewa payment status fetched", await getEsewaPaymentStatus(req.user!.id, req.query.transaction_uuid)); }
   catch (error) { return failure(res, error); }
 }

@@ -32,6 +32,7 @@ const registerUser = async (dto) => {
         fullName: dto.fullName,
         email: dto.email,
         password: hashedPassword,
+        phone: dto.phone,
     });
     return (0, exports.toUserResponse)(user);
 };

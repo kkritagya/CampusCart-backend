@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addCartItem, checkout, listCart, listPurchases, removeCartItem, sellerEarnings, verifyEsewa } from "../controllers/cart.controller";
+import { addCartItem, checkout, esewaStatus, listCart, listPurchases, removeCartItem, sellerEarnings, verifyEsewa } from "../controllers/cart.controller";
 import { authorize } from "../middlewares/authorized.middleware";
 
 const router = Router();
@@ -8,6 +8,7 @@ router.get("/", listCart);
 router.get("/purchases", listPurchases);
 router.get("/earnings", sellerEarnings);
 router.post("/checkout", checkout);
+router.get("/checkout/esewa/status", esewaStatus);
 router.post("/checkout/esewa/verify", verifyEsewa);
 router.post("/:listingId", addCartItem);
 router.delete("/:listingId", removeCartItem);

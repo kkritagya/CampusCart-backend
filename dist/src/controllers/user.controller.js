@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.forgotPassword = exports.updatePassword = exports.updateProfile = exports.uploadProfilePictureController = exports.logout = exports.getCurrentUser = exports.login = exports.register = void 0;
+exports.resetPasswordMobile = exports.verifyPasswordResetOtpMobile = exports.forgotPasswordMobile = exports.resetPassword = exports.forgotPassword = exports.updatePassword = exports.updateProfile = exports.uploadProfilePictureController = exports.logout = exports.getCurrentUser = exports.login = exports.register = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const constant_1 = require("../configs/constant");
 const user_dto_1 = require("../dtos/user.dto");
@@ -11,6 +11,7 @@ const http_exception_1 = require("../exceptions/http-exception");
 const user_service_1 = require("../services/user.service");
 const apihelper_util_1 = require("../utils/apihelper.util");
 const password_reset_service_1 = require("../services/password-reset.service");
+const mobile_password_reset_service_1 = require("../services/mobile-password-reset.service");
 const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -201,3 +202,60 @@ const resetPassword = async (req, res) => {
     }
 };
 exports.resetPassword = resetPassword;
+const forgotPasswordMobile = async (req, res) => {
+    try {
+        const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return (0, apihelper_util_1.sendResponse)(res, 400, false, "A valid email is required");
+        }
+        await (0, mobile_password_reset_service_1.requestMobilePasswordReset)(email);
+        return (0, apihelper_util_1.sendResponse)(res, 200, true, "If an account exists for that email, a 6-digit code has been sent.");
+    }
+    catch (error) {
+        const statusCode = error instanceof http_exception_1.HttpException ? error.statusCode : 500;
+        const message = error instanceof Error ? error.message : "Failed to send reset code";
+        return (0, apihelper_util_1.sendResponse)(res, statusCode, false, message);
+    }
+};
+exports.forgotPasswordMobile = forgotPasswordMobile;
+const verifyPasswordResetOtpMobile = async (req, res) => {
+    try {
+        const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+        const otp = typeof req.body?.otp === "string" ? req.body.otp.trim() : "";
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return (0, apihelper_util_1.sendResponse)(res, 400, false, "A valid email is required");
+        }
+        if (!/^\d{6}$/.test(otp)) {
+            return (0, apihelper_util_1.sendResponse)(res, 400, false, "Enter the 6-digit OTP");
+        }
+        const resetToken = await (0, mobile_password_reset_service_1.verifyMobilePasswordResetOtp)(email, otp);
+        return (0, apihelper_util_1.sendResponse)(res, 200, true, "OTP verified", { resetToken });
+    }
+    catch (error) {
+        const statusCode = error instanceof http_exception_1.HttpException ? error.statusCode : 500;
+        const message = error instanceof Error ? error.message : "Failed to verify reset code";
+        return (0, apihelper_util_1.sendResponse)(res, statusCode, false, message);
+    }
+};
+exports.verifyPasswordResetOtpMobile = verifyPasswordResetOtpMobile;
+const resetPasswordMobile = async (req, res) => {
+    try {
+        const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+        const resetToken = typeof req.body?.resetToken === "string" ? req.body.resetToken : "";
+        const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+        if (!email || !resetToken) {
+            return (0, apihelper_util_1.sendResponse)(res, 400, false, "Reset session is required");
+        }
+        if (newPassword.length < 8) {
+            return (0, apihelper_util_1.sendResponse)(res, 400, false, "New password must be at least 8 characters");
+        }
+        await (0, mobile_password_reset_service_1.resetMobilePassword)(email, resetToken, newPassword);
+        return (0, apihelper_util_1.sendResponse)(res, 200, true, "Password reset successfully");
+    }
+    catch (error) {
+        const statusCode = error instanceof http_exception_1.HttpException ? error.statusCode : 500;
+        const message = error instanceof Error ? error.message : "Password reset failed";
+        return (0, apihelper_util_1.sendResponse)(res, statusCode, false, message);
+    }
+};
+exports.resetPasswordMobile = resetPasswordMobile;

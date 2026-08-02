@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "@jest/globals";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import app from "../src/app";
-import { lastTestResetLink } from "../src/services/email.service";
+import { lastTestResetLink, lastTestResetOtp } from "../src/services/email.service";
 import { PasswordResetTokenModel } from "../src/models/password-reset-token.model";
 import { ListingModel } from "../src/models/listing.model";
 import fs from "fs/promises";
@@ -64,6 +64,19 @@ describe("cart and checkout API", () => {
     const buyerToken = await registerAndLogin(secondUser);
     const added = await request(app).post(`/api/v1/cart/${listing.body.data.id}`).set("Authorization", `Bearer ${buyerToken}`).expect(201);
     expect(added.body.data.items).toHaveLength(1);
+    const cartNotifications = await request(app).get("/api/v1/notifications").set("Authorization", `Bearer ${buyerToken}`).expect(200);
+    expect(cartNotifications.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "cart", read: false }),
+      ])
+    );
+    const cartNotification = cartNotifications.body.data.find(
+      (item: { type: string }) => item.type === "cart"
+    );
+    await request(app)
+      .patch(`/api/v1/notifications/${cartNotification.id}/read`)
+      .set("Authorization", `Bearer ${buyerToken}`)
+      .expect(200);
     const removed = await request(app).delete(`/api/v1/cart/${listing.body.data.id}`).set("Authorization", `Bearer ${buyerToken}`).expect(200);
     expect(removed.body.data.items).toHaveLength(0);
   });
@@ -91,6 +104,19 @@ describe("cart and checkout API", () => {
     expect(order.body.data.fields.transaction_uuid).toMatch(/^CC-/);
     expect(order.body.data.fields.signature).toBeTruthy();
     expect(order.body.data.fields.success_url).toBe("http://localhost:3000/payment/esewa/success");
+    const statusRequest = jest.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+      product_code: "EPAYTEST",
+      transaction_uuid: order.body.data.fields.transaction_uuid,
+      total_amount: validListing.price,
+      status: "PENDING",
+      ref_id: null,
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const paymentStatus = await request(app)
+      .get(`/api/v1/cart/checkout/esewa/status?transaction_uuid=${order.body.data.fields.transaction_uuid}`)
+      .set("Authorization", `Bearer ${buyerToken}`)
+      .expect(200);
+    expect(paymentStatus.body.data.status).toBe("PENDING");
+    statusRequest.mockRestore();
     const cart = await request(app).get("/api/v1/cart").set("Authorization", `Bearer ${buyerToken}`).expect(200);
     expect(cart.body.data.items).toHaveLength(1);
     const available = await request(app).get(`/api/v1/listings/${listing.body.data.id}`).expect(200);
@@ -286,6 +312,55 @@ describe("authentication API", () => {
       .post("/api/v1/auth/reset-password")
       .send({ token: "anything", newPassword: "short" })
       .expect(400);
+  });
+
+  it("supports the mobile OTP password reset flow without changing web reset links", async () => {
+    await request(app).post("/api/v1/auth/register").send(firstUser).expect(201);
+    const requested = await request(app)
+      .post("/api/v1/auth/mobile/forgot-password")
+      .send({ email: firstUser.email })
+      .expect(200);
+    const unknown = await request(app)
+      .post("/api/v1/auth/mobile/forgot-password")
+      .send({ email: "unknown@example.test" })
+      .expect(200);
+    expect(unknown.body.message).toBe(requested.body.message);
+    expect(lastTestResetOtp).toMatch(/^\d{6}$/);
+
+    await request(app)
+      .post("/api/v1/auth/mobile/verify-reset-otp")
+      .send({ email: firstUser.email, otp: "999999" })
+      .expect(400);
+    const verified = await request(app)
+      .post("/api/v1/auth/mobile/verify-reset-otp")
+      .send({ email: firstUser.email, otp: lastTestResetOtp })
+      .expect(200);
+    const resetToken = verified.body.data.resetToken as string;
+    expect(resetToken).toHaveLength(64);
+
+    await request(app)
+      .post("/api/v1/auth/mobile/reset-password")
+      .send({
+        email: firstUser.email,
+        resetToken,
+        newPassword: "MobileSecurePass123",
+      })
+      .expect(200);
+    await request(app)
+      .post("/api/v1/auth/mobile/reset-password")
+      .send({
+        email: firstUser.email,
+        resetToken,
+        newPassword: "AnotherSecurePass123",
+      })
+      .expect(400);
+    await request(app)
+      .post("/api/v1/auth/login")
+      .send({
+        email: firstUser.email,
+        password: "MobileSecurePass123",
+      })
+      .expect(200);
   });
 });
 
@@ -602,6 +677,11 @@ describe("saved listings API", () => {
       .expect(200);
     expect(saved.body.data).toHaveLength(1);
     expect(saved.body.data[0].id).toBe(id);
+    const notifications = await request(app)
+      .get("/api/v1/notifications")
+      .set("Authorization", `Bearer ${buyerToken}`)
+      .expect(200);
+    expect(notifications.body.data.filter((item: { type: string }) => item.type === "saved")).toHaveLength(1);
 
     await request(app)
       .delete(`/api/v1/saved/${id}`)

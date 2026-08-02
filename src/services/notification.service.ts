@@ -4,7 +4,7 @@ import { NotificationModel } from "../models/notification.model";
 
 export type NewNotification = {
   recipient: string | Types.ObjectId;
-  type: "message" | "sale" | "moderation";
+  type: "message" | "sale" | "moderation" | "saved" | "cart" | "purchase";
   title: string;
   body: string;
   href: string;

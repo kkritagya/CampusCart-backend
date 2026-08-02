@@ -12,6 +12,9 @@ const validateRegisterDto = (body) => {
     if (!body.password || body.password.length < 6) {
         return "Password must be at least 6 characters";
     }
+    if (body.phone && body.phone.trim().length < 7) {
+        return "A valid phone number is required";
+    }
     return null;
 };
 exports.validateRegisterDto = validateRegisterDto;

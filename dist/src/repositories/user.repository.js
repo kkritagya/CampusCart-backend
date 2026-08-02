@@ -15,6 +15,7 @@ const createUser = (user) => {
         fullName: user.fullName.trim(),
         email: user.email.toLowerCase().trim(),
         password: user.password,
+        phone: user.phone?.trim() ?? "",
     });
 };
 exports.createUser = createUser;

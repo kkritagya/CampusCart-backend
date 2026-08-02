@@ -8,6 +8,7 @@ const http_exception_1 = require("../exceptions/http-exception");
 const listing_repository_1 = require("../repositories/listing.repository");
 const saved_listing_repository_1 = require("../repositories/saved-listing.repository");
 const listing_service_1 = require("./listing.service");
+const notification_service_1 = require("./notification.service");
 function validateListingId(id) {
     if (!(0, mongoose_1.isValidObjectId)(id))
         throw new http_exception_1.HttpException(400, "Invalid listing ID");
@@ -29,7 +30,17 @@ async function saveListing(userId, listingId) {
         listing.verificationStatus !== "Verified") {
         throw new http_exception_1.HttpException(404, "Listing not found");
     }
+    const existing = await (0, saved_listing_repository_1.findSavedEntry)(userId, listingId);
     await (0, saved_listing_repository_1.createSavedEntry)(userId, listingId);
+    if (!existing) {
+        await (0, notification_service_1.createNotification)({
+            recipient: userId,
+            type: "saved",
+            title: "Item saved",
+            body: `${listing.title} was added to your saved items.`,
+            href: "/saved",
+        });
+    }
     return (0, listing_service_1.toListingResponse)(listing);
 }
 async function unsaveListing(userId, listingId) {

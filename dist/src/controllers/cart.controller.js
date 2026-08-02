@@ -7,6 +7,7 @@ exports.addCartItem = addCartItem;
 exports.removeCartItem = removeCartItem;
 exports.checkout = checkout;
 exports.verifyEsewa = verifyEsewa;
+exports.esewaStatus = esewaStatus;
 const http_exception_1 = require("../exceptions/http-exception");
 const cart_service_1 = require("../services/cart.service");
 const apihelper_util_1 = require("../utils/apihelper.util");
@@ -64,6 +65,14 @@ async function checkout(req, res) {
 async function verifyEsewa(req, res) {
     try {
         return (0, apihelper_util_1.sendResponse)(res, 200, true, "eSewa payment verified", await (0, cart_service_1.verifyEsewaPayment)(req.user.id, req.body?.data));
+    }
+    catch (error) {
+        return failure(res, error);
+    }
+}
+async function esewaStatus(req, res) {
+    try {
+        return (0, apihelper_util_1.sendResponse)(res, 200, true, "eSewa payment status fetched", await (0, cart_service_1.getEsewaPaymentStatus)(req.user.id, req.query.transaction_uuid));
     }
     catch (error) {
         return failure(res, error);

@@ -9,6 +9,7 @@ router.get("/", cart_controller_1.listCart);
 router.get("/purchases", cart_controller_1.listPurchases);
 router.get("/earnings", cart_controller_1.sellerEarnings);
 router.post("/checkout", cart_controller_1.checkout);
+router.get("/checkout/esewa/status", cart_controller_1.esewaStatus);
 router.post("/checkout/esewa/verify", cart_controller_1.verifyEsewa);
 router.post("/:listingId", cart_controller_1.addCartItem);
 router.delete("/:listingId", cart_controller_1.removeCartItem);

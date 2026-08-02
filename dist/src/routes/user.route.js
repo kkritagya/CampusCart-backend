@@ -12,6 +12,9 @@ router.get("/whoami", authorized_middleware_1.authorize, user_controller_1.getCu
 router.post("/logout", user_controller_1.logout);
 router.post("/forgot-password", user_controller_1.forgotPassword);
 router.post("/reset-password", user_controller_1.resetPassword);
+router.post("/mobile/forgot-password", user_controller_1.forgotPasswordMobile);
+router.post("/mobile/verify-reset-otp", user_controller_1.verifyPasswordResetOtpMobile);
+router.post("/mobile/reset-password", user_controller_1.resetPasswordMobile);
 router.put("/profile-picture", authorized_middleware_1.authorize, upload_middleware_1.upload.single("profilePicture"), user_controller_1.uploadProfilePictureController);
 router.put("/update", authorized_middleware_1.authorize, upload_middleware_1.upload.single("profilePicture"), user_controller_1.updateProfile);
 router.put("/password", authorized_middleware_1.authorize, user_controller_1.updatePassword);

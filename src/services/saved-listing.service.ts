@@ -8,6 +8,7 @@ import {
   findSavedEntry,
 } from "../repositories/saved-listing.repository";
 import { toListingResponse } from "./listing.service";
+import { createNotification } from "./notification.service";
 
 function validateListingId(id: string) {
   if (!isValidObjectId(id)) throw new HttpException(400, "Invalid listing ID");
@@ -40,7 +41,17 @@ export async function saveListing(userId: string, listingId: string) {
   ) {
     throw new HttpException(404, "Listing not found");
   }
+  const existing = await findSavedEntry(userId, listingId);
   await createSavedEntry(userId, listingId);
+  if (!existing) {
+    await createNotification({
+      recipient: userId,
+      type: "saved",
+      title: "Item saved",
+      body: `${listing.title} was added to your saved items.`,
+      href: "/saved",
+    });
+  }
   return toListingResponse(listing);
 }
 

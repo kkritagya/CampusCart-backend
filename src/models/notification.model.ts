@@ -3,7 +3,7 @@ import { model, Schema, Types } from "mongoose";
 export interface INotificationDocument {
   _id: Types.ObjectId;
   recipient: Types.ObjectId;
-  type: "message" | "sale" | "moderation";
+  type: "message" | "sale" | "moderation" | "saved" | "cart" | "purchase";
   title: string;
   body: string;
   href: string;
@@ -22,7 +22,7 @@ const notificationSchema = new Schema<INotificationDocument>(
     },
     type: {
       type: String,
-      enum: ["message", "sale", "moderation"],
+      enum: ["message", "sale", "moderation", "saved", "cart", "purchase"],
       required: true,
     },
     title: { type: String, required: true, trim: true, maxlength: 160 },

@@ -31,6 +31,7 @@ export const registerUser = async (dto: RegisterUserDto): Promise<IUserResponse>
     fullName: dto.fullName,
     email: dto.email,
     password: hashedPassword,
+    phone: dto.phone,
   });
 
   return toUserResponse(user);

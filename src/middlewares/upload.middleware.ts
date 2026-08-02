@@ -56,3 +56,9 @@ export const listingUpload = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024, files: 6 },
 });
+
+export const aiImageUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+});

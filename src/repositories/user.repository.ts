@@ -13,11 +13,13 @@ export const createUser = (user: {
   fullName: string;
   email: string;
   password: string;
+  phone?: string;
 }): Promise<IUserDocument> => {
   return UserModel.create({
     fullName: user.fullName.trim(),
     email: user.email.toLowerCase().trim(),
     password: user.password,
+    phone: user.phone?.trim() ?? "",
   });
 };
 

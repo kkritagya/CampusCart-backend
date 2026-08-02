@@ -12,7 +12,7 @@ import { CartModel } from "../models/cart.model";
 import { ListingModel } from "../models/listing.model";
 import { OrderModel } from "../models/order.model";
 import { toListingResponse } from "./listing.service";
-import { createNotifications } from "./notification.service";
+import { createNotification, createNotifications } from "./notification.service";
 
 export type BillingAddress = {
   fullName: string;
@@ -130,11 +130,23 @@ export async function addToCart(userId: string, listingId: string) {
     listing.verificationStatus !== "Verified"
   ) throw new HttpException(404, "Listing is no longer available");
   if (listing.seller.toString() === userId) throw new HttpException(400, "You cannot buy your own listing");
+  const currentCart = await CartModel.findOne({ user: userId });
+  const alreadyInCart =
+    currentCart?.listings.some((id) => id.toString() === listingId) ?? false;
   await CartModel.findOneAndUpdate(
     { user: userId },
     { $setOnInsert: { user: new Types.ObjectId(userId) }, $addToSet: { listings: listing._id } },
     { upsert: true, returnDocument: "after" }
   );
+  if (!alreadyInCart) {
+    await createNotification({
+      recipient: userId,
+      type: "cart",
+      title: "Added to cart",
+      body: `${listing.title} is ready in your cart.`,
+      href: "/cart",
+    });
+  }
   return getCart(userId);
 }
 
@@ -150,6 +162,41 @@ function amountForEsewa(amount: number) {
 
 function esewaSignature(message: string) {
   return createHmac("sha256", ESEWA_SECRET_KEY).update(message).digest("base64");
+}
+
+type EsewaStatusResponse = {
+  status?: string;
+  ref_id?: string | null;
+};
+
+async function fetchEsewaStatus(transactionUuid: string, total: number) {
+  const statusUrl = new URL(ESEWA_STATUS_URL);
+  statusUrl.searchParams.set("product_code", ESEWA_PRODUCT_CODE);
+  statusUrl.searchParams.set("total_amount", amountForEsewa(total));
+  statusUrl.searchParams.set("transaction_uuid", transactionUuid);
+  const response = await fetch(statusUrl);
+  if (!response.ok) throw new HttpException(502, "Unable to check payment status with eSewa");
+  return (await response.json()) as EsewaStatusResponse;
+}
+
+export async function getEsewaPaymentStatus(userId: string, transactionUuidInput: unknown) {
+  const transactionUuid = clean(transactionUuidInput);
+  if (!transactionUuid || !/^[a-zA-Z0-9-]+$/.test(transactionUuid)) {
+    throw new HttpException(400, "Invalid eSewa transaction ID");
+  }
+  const order = await OrderModel.findOne({ buyer: userId, "payment.transactionUuid": transactionUuid });
+  if (!order) throw new HttpException(404, "Payment order not found");
+  if (order.payment?.status === "Complete") {
+    return { status: "COMPLETE", orderNumber: order.orderNumber, transactionUuid };
+  }
+
+  const payment = await fetchEsewaStatus(transactionUuid, order.total);
+  const status = clean(payment.status).toUpperCase() || "UNKNOWN";
+  if (["CANCELED", "NOT_FOUND", "FULL_REFUND", "PARTIAL_REFUND"].includes(status)) {
+    order.set({ status: "Cancelled", "payment.status": "Failed" });
+    await order.save();
+  }
+  return { status, orderNumber: order.orderNumber, transactionUuid };
 }
 
 export async function checkoutCart(userId: string, billingInput: unknown) {
@@ -259,13 +306,7 @@ export async function verifyEsewaPayment(userId: string, encodedData: unknown) {
   const expectedAmount = amountForEsewa(order.total);
   if (Number(response.total_amount) !== Number(expectedAmount)) throw new HttpException(400, "Payment amount does not match the order");
 
-  const statusUrl = new URL(ESEWA_STATUS_URL);
-  statusUrl.searchParams.set("product_code", ESEWA_PRODUCT_CODE);
-  statusUrl.searchParams.set("total_amount", expectedAmount);
-  statusUrl.searchParams.set("transaction_uuid", transactionUuid);
-  const statusResponse = await fetch(statusUrl);
-  if (!statusResponse.ok) throw new HttpException(502, "Unable to verify payment with eSewa");
-  const status = (await statusResponse.json()) as { status?: string; ref_id?: string };
+  const status = await fetchEsewaStatus(transactionUuid, order.total);
   if (status.status !== "COMPLETE") throw new HttpException(400, "eSewa payment verification was not complete");
 
   const listingIds = order.items.map((item) => item.listing);
@@ -287,6 +328,13 @@ export async function verifyEsewaPayment(userId: string, encodedData: unknown) {
       href: "/dashboard/listings",
     }))
   );
+  await createNotification({
+    recipient: userId,
+    type: "purchase",
+    title: "Purchase completed",
+    body: `Order ${order.orderNumber} was paid successfully with eSewa.`,
+    href: "/purchases",
+  });
   await CartModel.updateOne({ user: userId }, { $pull: { listings: { $in: listingIds } } });
   return { id: order._id.toString(), orderNumber: order.orderNumber, status: order.status, total: order.total, itemCount: order.items.length };
 }

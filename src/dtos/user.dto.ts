@@ -2,6 +2,7 @@ export interface RegisterUserDto {
   fullName: string;
   email: string;
   password: string;
+  phone?: string;
 }
 
 export interface LoginUserDto {
@@ -22,6 +23,9 @@ export const validateRegisterDto = (body: Partial<RegisterUserDto>): string | nu
 
   if (!body.password || body.password.length < 6) {
     return "Password must be at least 6 characters";
+  }
+  if (body.phone && body.phone.trim().length < 7) {
+    return "A valid phone number is required";
   }
 
   return null;
